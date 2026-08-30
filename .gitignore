@@ -1,0 +1,7 @@
+node_modules/
+dist/
+tmp/
+output/
+*.PSD
+Biografia Renata Fonseca.pdf
+.DS_Store

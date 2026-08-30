@@ -1,0 +1,16 @@
+{
+  "name": "renata-fonseca-livro-digital",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/build-worker.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@openai/sites-vite-plugin": "latest",
+    "page-flip": "2.0.7",
+    "vite": "latest"
+  }
+}
