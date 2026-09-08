@@ -1,6 +1,8 @@
 import { PageFlip } from "page-flip";
 import "./styles.css";
 
+await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
 const appShell = document.querySelector("#appShell");
 const bookElement = document.querySelector("#book");
 const bookStage = document.querySelector("#bookStage");
@@ -21,16 +23,24 @@ const controls = {
 controls.total.textContent = String(total);
 
 function getPageSize() {
-  const stageWidth = bookStage.clientWidth - (window.innerWidth <= 820 ? 26 : 118);
-  const stageHeight = bookStage.clientHeight - 16;
-  const portrait = stageWidth < 650;
-  const maxPageWidth = portrait ? stageWidth : stageWidth / 2;
+  const compact = window.innerWidth <= 820;
+  const shortDesktop = !compact && window.innerHeight <= 700;
+  const topbarHeight = compact ? 60 : shortDesktop ? 58 : 68;
+  const readerHeadHeight = shortDesktop ? 34 : 42;
+  const dockHeight = compact ? 60 : shortDesktop ? 56 : 64;
+  const stageWidth = bookStage.clientWidth - (compact ? 26 : 118);
+  const stageHeight = window.innerHeight - topbarHeight - readerHeadHeight - dockHeight - 16;
+  const fullPageWidth = Math.min(402, Math.floor(stageHeight * 0.4725));
+  const showSpread = stageWidth >= fullPageWidth * 2;
+  const maxPageWidth = showSpread ? stageWidth / 2 : stageWidth;
   let height = Math.min(850, stageHeight, maxPageWidth / 0.4725);
   height = Math.max(370, height);
-  return { width: Math.round(height * 0.4725), height: Math.round(height) };
+  const width = Math.round(height * 0.4725);
+  return { width, height: Math.round(height), bookWidth: width * (showSpread ? 2 : 1) };
 }
 
 const pageSize = getPageSize();
+document.querySelector(".book-wrap").style.width = `${pageSize.bookWidth}px`;
 const pageFlip = new PageFlip(bookElement, {
   width: pageSize.width,
   height: pageSize.height,
@@ -49,9 +59,19 @@ const pageFlip = new PageFlip(bookElement, {
   swipeDistance: 16,
   showPageCorners: true,
   clickEventForward: true,
+  disableFlipByClick: true,
 });
 
 pageFlip.loadFromHTML(pages);
+
+const flipSurface = bookElement.querySelector(".stf__block");
+flipSurface?.addEventListener("mousedown", (event) => {
+  if (event.target.closest("button, a")) return;
+  const rect = flipSurface.getBoundingClientRect();
+  const edge = Math.min(64, rect.width * 0.14);
+  const x = event.clientX - rect.left;
+  if (x > edge && x < rect.width - edge) event.stopImmediatePropagation();
+}, true);
 
 function goToPage(index) {
   const safeIndex = Math.max(0, Math.min(total - 1, Number(index) || 0));
@@ -86,6 +106,11 @@ buildThumbnails();
 
 function updateReader() {
   const index = pageFlip.getCurrentPageIndex();
+  const landscape = pageFlip.getOrientation() === "landscape";
+  const offset = landscape
+    ? (index === 0 ? -pageFlip.getBoundsRect().pageWidth / 2 : index >= total - 1 ? pageFlip.getBoundsRect().pageWidth / 2 : 0)
+    : 0;
+  bookElement.style.transform = `translateX(${offset}px)`;
   controls.input.value = String(index + 1);
   controls.section.textContent = pageTitles[index] || "Página";
   controls.prev.forEach((button) => { button.disabled = index === 0; });
