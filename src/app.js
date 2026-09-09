@@ -1,11 +1,17 @@
 import { PageFlip } from "page-flip";
 import "./styles.css";
 
-await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
 const appShell = document.querySelector("#appShell");
 const bookElement = document.querySelector("#book");
 const bookStage = document.querySelector("#bookStage");
+
+await new Promise((resolve) => {
+  function tryResolve() {
+    if (bookStage.clientWidth > 10) { resolve(); return; }
+    requestAnimationFrame(tryResolve);
+  }
+  requestAnimationFrame(tryResolve);
+});
 const bookWrap = document.querySelector(".book-wrap");
 const pages = [...document.querySelectorAll(".page")];
 const total = pages.length;
@@ -138,10 +144,9 @@ function runProgrammaticFlip(callback) {
 
 function runFlip(direction) {
   activeDirection = direction;
-  runProgrammaticFlip(() => {
-    if (direction < 0) pageFlip.flipPrev("top");
-    else pageFlip.flipNext("top");
-  });
+  const current = pageFlip.getCurrentPageIndex();
+  const target = Math.max(0, Math.min(total - 1, current + direction));
+  runProgrammaticFlip(() => pageFlip.flip(target, "top"));
 }
 
 function navigateBy(direction) {
@@ -316,31 +321,12 @@ function setReaderZoom(value) {
 document.querySelector("#zoomOut").addEventListener("click", () => setReaderZoom(readerZoom - 0.1));
 document.querySelector("#zoomIn").addEventListener("click", () => setReaderZoom(readerZoom + 0.1));
 
-const fullscreenButton = document.querySelector("#fullscreenButton");
-fullscreenButton.addEventListener("click", async () => {
-  try {
-    // O visualizador de imagem e o toast ficam fora de #appShell; a tela cheia precisa ser
-    // do documento inteiro, senão eles somem quando o leitor está em fullscreen.
-    if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.();
-    else await document.exitFullscreen?.();
-  } catch {
-    showToast("Tela cheia indisponível neste navegador");
-  }
-});
-document.addEventListener("fullscreenchange", () => {
-  const isFullscreen = !!document.fullscreenElement;
-  fullscreenButton.setAttribute("aria-label", isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia");
-  if (window.innerWidth <= 820) {
-    appShell.classList.toggle("reading-fullscreen", isFullscreen);
-    lastSizeSignature = "";
-    syncBookLayout();
-  }
-});
 
 const imageViewer = document.querySelector("#imageViewer");
 const viewerImage = document.querySelector("#viewerImage");
 const viewerTitle = document.querySelector("#viewerTitle");
 let lastZoomTrigger = null;
+let viewerPageIndex = 0;
 
 let vScale = 1, vPanX = 0, vPanY = 0;
 let vPinchDist0 = 0, vPinchScale0 = 1;
@@ -385,24 +371,44 @@ imageViewer.addEventListener("touchmove", (e) => {
 imageViewer.addEventListener("touchend", (e) => {
   if (e.changedTouches.length === 1 && e.touches.length === 0) {
     const now = Date.now();
-    const dx = Math.abs(e.changedTouches[0].clientX - vDragX0);
+    const rawDx = e.changedTouches[0].clientX - vDragX0;
     const dy = Math.abs(e.changedTouches[0].clientY - vDragY0);
+    const dx = Math.abs(rawDx);
     if (dx < 10 && dy < 10 && now - vLastTap < 300) {
       vScale > 1 ? resetViewerTransform() : (vScale = 2.5, applyViewerTransform());
+      vLastTap = 0;
+    } else if (dx > 50 && dy < 60 && vScale === 1) {
+      const direction = rawDx < 0 ? 1 : -1;
+      const target = Math.max(0, Math.min(total - 1, viewerPageIndex + direction));
+      if (target !== viewerPageIndex) showViewerPage(target);
       vLastTap = 0;
     } else { vLastTap = now; }
   }
 }, { passive: true });
 
+function showViewerPage(index) {
+  const page = pages[index];
+  if (!page) return false;
+  const image = page.querySelector(".source-page");
+  viewerPageIndex = index;
+  viewerTitle.textContent = page.dataset.title || "Página";
+  resetViewerTransform();
+  if (image) {
+    viewerImage.src = image.currentSrc || image.src;
+    viewerImage.alt = image.alt;
+    viewerImage.hidden = false;
+  } else {
+    viewerImage.removeAttribute("src");
+    viewerImage.hidden = true;
+  }
+  return true;
+}
+
 function openImageViewer(button) {
   const page = button.closest(".page");
-  const image = page?.querySelector(".source-page");
-  if (!image) return;
+  const index = pages.indexOf(page);
+  if (index === -1 || !showViewerPage(index)) return;
   lastZoomTrigger = button;
-  viewerImage.src = image.currentSrc || image.src;
-  viewerImage.alt = image.alt;
-  viewerTitle.textContent = page.dataset.title || "Página ampliada";
-  resetViewerTransform();
   imageViewer.classList.add("open");
   imageViewer.setAttribute("aria-hidden", "false");
   document.querySelector("#closeViewer").focus();
@@ -497,15 +503,24 @@ bookStageObserver.observe(bookStage);
 
 updateReader();
 setReaderZoom(1);
-requestAnimationFrame(() => {
-  appShell.classList.add("ready");
-  appShell.setAttribute("aria-busy", "false");
+
+function nudgeRender() {
   const size = getPageSize();
+  if (size.bookWidth < 10) return;
+  lastSizeSignature = "";
   bookWrap.style.width = `${size.bookWidth + 1}px`;
   pageFlip.update();
   requestAnimationFrame(() => {
     bookWrap.style.width = `${size.bookWidth}px`;
     pageFlip.update();
     updateReader();
+    lastSizeSignature = sizeSignature(size);
   });
+}
+
+requestAnimationFrame(() => {
+  appShell.classList.add("ready");
+  appShell.setAttribute("aria-busy", "false");
+  nudgeRender();
+  [150, 500, 1200].forEach((ms) => setTimeout(nudgeRender, ms));
 });

@@ -282,8 +282,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .toast { bottom: calc(74px + env(safe-area-inset-bottom)); }
   .app-shell.reading-fullscreen { grid-template: 0 minmax(0, 1fr) / minmax(0, 1fr); }
   .app-shell.reading-fullscreen .topbar,
-  .app-shell.reading-fullscreen .reader-head,
-  .app-shell.reading-fullscreen .control-dock { display: none; }
+  .app-shell.reading-fullscreen .reader-head { display: none; }
   .app-shell.reading-fullscreen .book-stage { padding: 2px; }
 }
 
