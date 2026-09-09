@@ -399,4 +399,7 @@ setReaderZoom(1);
 requestAnimationFrame(() => {
   appShell.classList.add("ready");
   appShell.setAttribute("aria-busy", "false");
+  lastSizeSignature = "";
+  syncBookLayout();
+  setTimeout(() => { lastSizeSignature = ""; syncBookLayout(); }, 150);
 });
