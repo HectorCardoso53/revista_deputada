@@ -211,7 +211,16 @@
         <button class="icon-button light" id="closeViewer" type="button" aria-label="Fechar ampliação"><svg aria-hidden="true"><use href="#i-close"></use></svg></button>
       </div>
       <img id="viewerImage" alt="" />
-      <p>Use a roda do mouse ou os gestos do navegador para aproximar.</p>
+      <div id="viewerPage" hidden></div>
+      <div class="viewer-footer">
+        <button class="viewer-nav-btn" id="viewerPrev" type="button" aria-label="Página anterior">
+          <svg aria-hidden="true"><use href="#i-chevron-left"></use></svg>
+        </button>
+        <span id="viewerCounter" aria-live="polite"></span>
+        <button class="viewer-nav-btn" id="viewerNext" type="button" aria-label="Próxima página">
+          <svg aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+        </button>
+      </div>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"><svg aria-hidden="true"><use href="#i-check"></use></svg><span>Link copiado</span></div>

@@ -324,7 +324,11 @@ document.querySelector("#zoomIn").addEventListener("click", () => setReaderZoom(
 
 const imageViewer = document.querySelector("#imageViewer");
 const viewerImage = document.querySelector("#viewerImage");
+const viewerPageEl = document.querySelector("#viewerPage");
 const viewerTitle = document.querySelector("#viewerTitle");
+const viewerCounter = document.querySelector("#viewerCounter");
+const viewerPrev = document.querySelector("#viewerPrev");
+const viewerNext = document.querySelector("#viewerNext");
 let lastZoomTrigger = null;
 let viewerPageIndex = 0;
 
@@ -377,14 +381,17 @@ imageViewer.addEventListener("touchend", (e) => {
     if (dx < 10 && dy < 10 && now - vLastTap < 300) {
       vScale > 1 ? resetViewerTransform() : (vScale = 2.5, applyViewerTransform());
       vLastTap = 0;
-    } else if (dx > 50 && dy < 60 && vScale === 1) {
-      const direction = rawDx < 0 ? 1 : -1;
-      const target = Math.max(0, Math.min(total - 1, viewerPageIndex + direction));
-      if (target !== viewerPageIndex) showViewerPage(target);
+    } else if (dx > 30 && dy < 80 && vScale === 1) {
+      viewerNavigate(rawDx < 0 ? 1 : -1);
       vLastTap = 0;
     } else { vLastTap = now; }
   }
 }, { passive: true });
+
+function viewerNavigate(direction) {
+  const target = Math.max(0, Math.min(total - 1, viewerPageIndex + direction));
+  if (target !== viewerPageIndex) showViewerPage(target);
+}
 
 function showViewerPage(index) {
   const page = pages[index];
@@ -392,17 +399,29 @@ function showViewerPage(index) {
   const image = page.querySelector(".source-page");
   viewerPageIndex = index;
   viewerTitle.textContent = page.dataset.title || "Página";
+  viewerCounter.textContent = `${index + 1} / ${total}`;
+  viewerPrev.disabled = index === 0;
+  viewerNext.disabled = index >= total - 1;
   resetViewerTransform();
   if (image) {
     viewerImage.src = image.currentSrc || image.src;
     viewerImage.alt = image.alt;
     viewerImage.hidden = false;
+    viewerPageEl.hidden = true;
   } else {
-    viewerImage.removeAttribute("src");
     viewerImage.hidden = true;
+    const { width: pw, height: ph } = getPageSize();
+    const scale = Math.min((window.innerWidth * 0.88) / pw, (window.innerHeight * 0.68) / ph);
+    const inner = page.querySelector("article") || page.firstElementChild;
+    viewerPageEl.innerHTML = inner ? inner.outerHTML : "";
+    viewerPageEl.style.cssText = `width:${pw}px;height:${ph}px;transform:scale(${scale})`;
+    viewerPageEl.hidden = false;
   }
   return true;
 }
+
+viewerPrev.addEventListener("click", () => viewerNavigate(-1));
+viewerNext.addEventListener("click", () => viewerNavigate(1));
 
 function openImageViewer(button) {
   const page = button.closest(".page");
