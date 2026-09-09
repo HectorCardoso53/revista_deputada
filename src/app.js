@@ -78,16 +78,37 @@ flipSurface?.addEventListener("mousedown", (event) => {
   if (x > edge && x < rect.width - edge) event.stopImmediatePropagation();
 }, true);
 
-let swipeStartX = 0;
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+
+function touchDist(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 bookStage.addEventListener("touchstart", (e) => {
-  swipeStartX = e.touches[0].clientX;
+  if (e.touches.length === 2) {
+    pinchStartDist = touchDist(e.touches);
+    pinchStartZoom = readerZoom;
+  }
 }, { passive: true });
+
+bookStage.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 2) {
+    setReaderZoom(pinchStartZoom * (touchDist(e.touches) / pinchStartDist));
+  }
+}, { passive: true });
+
+let lastBookTap = 0;
 bookStage.addEventListener("touchend", (e) => {
   if (e.target.closest("button, a")) return;
-  const dx = e.changedTouches[0].clientX - swipeStartX;
-  if (Math.abs(dx) > 40) {
-    if (dx < 0) navigateBy(1);
-    else navigateBy(-1);
+  if (e.changedTouches.length === 1 && e.touches.length === 0) {
+    const now = Date.now();
+    if (now - lastBookTap < 300) {
+      setReaderZoom(readerZoom > 1 ? 1 : 1.3);
+      lastBookTap = 0;
+    } else { lastBookTap = now; }
   }
 }, { passive: true });
 
@@ -201,8 +222,14 @@ pageFlip.on("changeState", (event) => {
   queuedDirection = 0;
   if (pendingDirection) requestAnimationFrame(() => navigateBy(pendingDirection));
 });
-controls.prev.forEach((button) => button.addEventListener("click", flipPrevious));
-controls.next.forEach((button) => button.addEventListener("click", flipNext));
+controls.prev.forEach((button) => {
+  button.addEventListener("click", flipPrevious);
+  button.addEventListener("touchend", (e) => { e.preventDefault(); e.stopPropagation(); flipPrevious(); }, { passive: false });
+});
+controls.next.forEach((button) => {
+  button.addEventListener("click", flipNext);
+  button.addEventListener("touchend", (e) => { e.preventDefault(); e.stopPropagation(); flipNext(); }, { passive: false });
+});
 controls.first.addEventListener("click", () => goToPage(0));
 controls.last.addEventListener("click", () => goToPage(total - 1));
 function submitPageInput() {
@@ -301,13 +328,72 @@ fullscreenButton.addEventListener("click", async () => {
   }
 });
 document.addEventListener("fullscreenchange", () => {
-  fullscreenButton.setAttribute("aria-label", document.fullscreenElement ? "Sair da tela cheia" : "Entrar em tela cheia");
+  const isFullscreen = !!document.fullscreenElement;
+  fullscreenButton.setAttribute("aria-label", isFullscreen ? "Sair da tela cheia" : "Entrar em tela cheia");
+  if (window.innerWidth <= 820) {
+    appShell.classList.toggle("reading-fullscreen", isFullscreen);
+    lastSizeSignature = "";
+    syncBookLayout();
+  }
 });
 
 const imageViewer = document.querySelector("#imageViewer");
 const viewerImage = document.querySelector("#viewerImage");
 const viewerTitle = document.querySelector("#viewerTitle");
 let lastZoomTrigger = null;
+
+let vScale = 1, vPanX = 0, vPanY = 0;
+let vPinchDist0 = 0, vPinchScale0 = 1;
+let vDragX0 = 0, vDragY0 = 0, vPanX0 = 0, vPanY0 = 0;
+let vLastTap = 0;
+
+function applyViewerTransform() {
+  viewerImage.style.transform = `scale(${vScale}) translate(${vPanX}px,${vPanY}px)`;
+  viewerImage.style.cursor = vScale > 1 ? "grab" : "";
+}
+function resetViewerTransform() {
+  vScale = 1; vPanX = 0; vPanY = 0;
+  viewerImage.style.transform = "";
+  viewerImage.style.cursor = "";
+}
+
+imageViewer.addEventListener("touchstart", (e) => {
+  viewerImage.style.transition = "none";
+  if (e.touches.length === 2) {
+    vPinchDist0 = touchDist(e.touches);
+    vPinchScale0 = vScale;
+  } else if (e.touches.length === 1) {
+    vDragX0 = e.touches[0].clientX;
+    vDragY0 = e.touches[0].clientY;
+    vPanX0 = vPanX; vPanY0 = vPanY;
+  }
+}, { passive: true });
+
+imageViewer.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    vScale = Math.max(1, Math.min(5, vPinchScale0 * (touchDist(e.touches) / vPinchDist0)));
+    applyViewerTransform();
+  } else if (e.touches.length === 1 && vScale > 1) {
+    e.preventDefault();
+    vPanX = vPanX0 + (e.touches[0].clientX - vDragX0) / vScale;
+    vPanY = vPanY0 + (e.touches[0].clientY - vDragY0) / vScale;
+    applyViewerTransform();
+  }
+}, { passive: false });
+
+imageViewer.addEventListener("touchend", (e) => {
+  if (e.changedTouches.length === 1 && e.touches.length === 0) {
+    const now = Date.now();
+    const dx = Math.abs(e.changedTouches[0].clientX - vDragX0);
+    const dy = Math.abs(e.changedTouches[0].clientY - vDragY0);
+    if (dx < 10 && dy < 10 && now - vLastTap < 300) {
+      vScale > 1 ? resetViewerTransform() : (vScale = 2.5, applyViewerTransform());
+      vLastTap = 0;
+    } else { vLastTap = now; }
+  }
+}, { passive: true });
+
 function openImageViewer(button) {
   const page = button.closest(".page");
   const image = page?.querySelector(".source-page");
@@ -316,6 +402,7 @@ function openImageViewer(button) {
   viewerImage.src = image.currentSrc || image.src;
   viewerImage.alt = image.alt;
   viewerTitle.textContent = page.dataset.title || "Página ampliada";
+  resetViewerTransform();
   imageViewer.classList.add("open");
   imageViewer.setAttribute("aria-hidden", "false");
   document.querySelector("#closeViewer").focus();
@@ -324,6 +411,7 @@ function closeImageViewer() {
   imageViewer.classList.remove("open");
   imageViewer.setAttribute("aria-hidden", "true");
   viewerImage.removeAttribute("src");
+  resetViewerTransform();
   lastZoomTrigger?.focus();
 }
 document.querySelectorAll("[data-zoom]").forEach((button) => button.addEventListener("click", (event) => {
@@ -412,7 +500,12 @@ setReaderZoom(1);
 requestAnimationFrame(() => {
   appShell.classList.add("ready");
   appShell.setAttribute("aria-busy", "false");
-  lastSizeSignature = "";
-  syncBookLayout();
-  setTimeout(() => { lastSizeSignature = ""; syncBookLayout(); }, 150);
+  const size = getPageSize();
+  bookWrap.style.width = `${size.bookWidth + 1}px`;
+  pageFlip.update();
+  requestAnimationFrame(() => {
+    bookWrap.style.width = `${size.bookWidth}px`;
+    pageFlip.update();
+    updateReader();
+  });
 });
