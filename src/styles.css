@@ -56,8 +56,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .skip-link:focus { transform: none; }
 
 .app-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template: var(--topbar-height) minmax(0, 1fr) / var(--sidebar-width) minmax(0, 1fr);
   background:
@@ -173,8 +173,11 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 #book { filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.28)); touch-action: pan-y; transition: transform 240ms ease; }
 #book .stf__wrapper { position: relative; width: 100%; }
 #book .stf__wrapper.--landscape::after { content: ""; position: absolute; z-index: 2; top: 0; bottom: 0; left: 50%; width: 18px; pointer-events: none; transform: translateX(-50%); background: linear-gradient(90deg, rgba(16, 7, 13, .22), rgba(255, 255, 255, .08) 42%, rgba(13, 5, 10, .26) 52%, rgba(255, 255, 255, .06) 68%, transparent); opacity: .78; }
-.page { position: relative; overflow: hidden; background: var(--paper); color: var(--page-ink); }
-.page::after { content: ""; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 26px rgba(65, 29, 44, 0.07); }
+.page { position: absolute; overflow: hidden; border: 1px solid rgba(84, 38, 58, .12); background: var(--paper); color: var(--page-ink); transform-style: preserve-3d; }
+.page::after { content: ""; position: absolute; z-index: 6; inset: 0; pointer-events: none; box-shadow: inset 0 0 26px rgba(65, 29, 44, 0.07); }
+.page.--left::after { box-shadow: inset -18px 0 24px rgba(54, 18, 35, .13), inset 1px 0 rgba(255, 255, 255, .55), inset 0 0 26px rgba(65, 29, 44, .06); }
+.page.--right::after { box-shadow: inset 18px 0 24px rgba(54, 18, 35, .13), inset -1px 0 rgba(255, 255, 255, .55), inset 0 0 26px rgba(65, 29, 44, .06); }
+.page.--hard { box-shadow: 0 1px 1px rgba(45, 15, 29, .18); }
 .source-page { width: 100%; height: 100%; display: block; object-fit: contain; background: #fff; }
 .cover-page .source-page { object-fit: cover; }
 .page-label { position: absolute; z-index: 3; left: 12px; bottom: 12px; padding: 7px 10px; border: 1px solid rgba(255,255,255,.64); border-radius: 999px; background: rgba(255,255,255,.88); color: var(--wine); font: 800 8px/1 "Manrope", sans-serif; letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 5px 18px rgba(82,20,47,.13); backdrop-filter: blur(8px); }

@@ -10,6 +10,10 @@ const pages = [...document.querySelectorAll(".page")];
 const total = pages.length;
 const pageTitles = pages.map((page) => page.dataset.title || "Página");
 
+pages.forEach((page) => { page.dataset.density = "hard"; });
+await document.fonts?.ready;
+await Promise.all(pages.flatMap((page) => [...page.querySelectorAll("img")]).map((image) => image.decode ? image.decode().catch(() => undefined) : Promise.resolve()));
+
 const controls = {
   prev: [document.querySelector("#prevButton"), document.querySelector("#prevEdge")],
   next: [document.querySelector("#nextButton"), document.querySelector("#nextEdge")],
@@ -49,15 +53,15 @@ const pageFlip = new PageFlip(bookElement, {
   maxWidth: 402,
   minHeight: 360,
   maxHeight: 850,
-  maxShadowOpacity: 0.35,
+  maxShadowOpacity: 0.46,
   showCover: true,
   mobileScrollSupport: true,
   usePortrait: true,
   autoSize: true,
   drawShadow: true,
-  flippingTime: 620,
+  flippingTime: 760,
   swipeDistance: 16,
-  showPageCorners: true,
+  showPageCorners: false,
   clickEventForward: true,
   disableFlipByClick: true,
 });
@@ -75,8 +79,18 @@ flipSurface?.addEventListener("mousedown", (event) => {
 
 function goToPage(index) {
   const safeIndex = Math.max(0, Math.min(total - 1, Number(index) || 0));
-  pageFlip.turnToPage(safeIndex);
+  if (pageFlip.getState() === "read" && safeIndex !== pageFlip.getCurrentPageIndex()) {
+    pageFlip.flip(safeIndex, "top");
+  }
   closeMobileSidebar();
+}
+
+function flipPrevious() {
+  if (pageFlip.getState() === "read") pageFlip.flipPrev("top");
+}
+
+function flipNext() {
+  if (pageFlip.getState() === "read") pageFlip.flipNext("top");
 }
 
 function buildThumbnails() {
@@ -128,8 +142,9 @@ function updateReader() {
 
 pageFlip.on("flip", updateReader);
 pageFlip.on("changeOrientation", updateReader);
-controls.prev.forEach((button) => button.addEventListener("click", () => pageFlip.flipPrev()));
-controls.next.forEach((button) => button.addEventListener("click", () => pageFlip.flipNext()));
+pageFlip.on("changeState", (event) => { bookElement.dataset.state = event.data; });
+controls.prev.forEach((button) => button.addEventListener("click", flipPrevious));
+controls.next.forEach((button) => button.addEventListener("click", flipNext));
 controls.first.addEventListener("click", () => goToPage(0));
 controls.last.addEventListener("click", () => goToPage(total - 1));
 controls.input.addEventListener("change", () => goToPage(Number(controls.input.value) - 1));
@@ -272,8 +287,8 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-  if (event.key === "ArrowRight" || event.key === "PageDown") pageFlip.flipNext();
-  if (event.key === "ArrowLeft" || event.key === "PageUp") pageFlip.flipPrev();
+  if (event.key === "ArrowRight" || event.key === "PageDown") flipNext();
+  if (event.key === "ArrowLeft" || event.key === "PageUp") flipPrevious();
   if (event.key === "Home") goToPage(0);
   if (event.key === "End") goToPage(total - 1);
   if (event.key === "Escape") closeMobileSidebar();
@@ -281,4 +296,7 @@ document.addEventListener("keydown", (event) => {
 
 updateReader();
 setReaderZoom(1);
-requestAnimationFrame(() => appShell.classList.add("ready"));
+requestAnimationFrame(() => {
+  appShell.classList.add("ready");
+  appShell.setAttribute("aria-busy", "false");
+});
