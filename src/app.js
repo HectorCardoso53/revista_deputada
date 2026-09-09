@@ -78,6 +78,19 @@ flipSurface?.addEventListener("mousedown", (event) => {
   if (x > edge && x < rect.width - edge) event.stopImmediatePropagation();
 }, true);
 
+let swipeStartX = 0;
+bookStage.addEventListener("touchstart", (e) => {
+  swipeStartX = e.touches[0].clientX;
+}, { passive: true });
+bookStage.addEventListener("touchend", (e) => {
+  if (e.target.closest("button, a")) return;
+  const dx = e.changedTouches[0].clientX - swipeStartX;
+  if (Math.abs(dx) > 40) {
+    if (dx < 0) navigateBy(1);
+    else navigateBy(-1);
+  }
+}, { passive: true });
+
 function goToPage(index) {
   const parsed = Number(index);
   if (!Number.isFinite(parsed)) return;

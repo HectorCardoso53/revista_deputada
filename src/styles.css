@@ -268,11 +268,13 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .app-shell.mobile-sidebar-open .sidebar { transform: none; }
   .reader { grid-column: 1; }
   .reader-head { padding: 0 11px; }.reader-hint { display: none; }
-  .book-stage { padding: 8px 16px 4px; }
-  .edge-nav { display: none; }
+  .book-stage { padding: 8px 4px 4px; }
+  .edge-nav { display: grid; width: 36px; height: 52px; opacity: 0.55; }
+  .edge-nav-prev { left: 4px; }
+  .edge-nav-next { right: 4px; }
   .page-label { display: none; }
   .control-dock { gap: 2px; padding-inline: 7px; }
-  .dock-button { width: 36px; height: 36px; }
+  .dock-button { width: 40px; height: 40px; }
   .page-counter { margin-inline: 1px; padding-inline: 7px; }
   .zoom-value { min-width: 32px; font-size: 9px; }
   .sidebar-backdrop { position: fixed; z-index: 30; inset: var(--topbar-height) 0 0; display: block; border: 0; background: rgba(10,5,10,.58); opacity: 0; visibility: hidden; backdrop-filter: blur(3px); transition: 180ms ease; }
