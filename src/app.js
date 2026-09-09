@@ -336,15 +336,23 @@ let vScale = 1, vPanX = 0, vPanY = 0;
 let vPinchDist0 = 0, vPinchScale0 = 1;
 let vDragX0 = 0, vDragY0 = 0, vPanX0 = 0, vPanY0 = 0;
 let vLastTap = 0;
+let viewerPageSizeScale = 1;
 
+function activeViewerEl() {
+  return viewerImage.hidden ? viewerPageEl : viewerImage;
+}
 function applyViewerTransform() {
-  viewerImage.style.transform = `scale(${vScale}) translate(${vPanX}px,${vPanY}px)`;
-  viewerImage.style.cursor = vScale > 1 ? "grab" : "";
+  const el = activeViewerEl();
+  const base = el === viewerPageEl ? viewerPageSizeScale : 1;
+  el.style.transform = `scale(${base * vScale}) translate(${vPanX}px,${vPanY}px)`;
+  el.style.cursor = vScale > 1 ? "grab" : "";
 }
 function resetViewerTransform() {
   vScale = 1; vPanX = 0; vPanY = 0;
   viewerImage.style.transform = "";
   viewerImage.style.cursor = "";
+  viewerPageEl.style.transform = `scale(${viewerPageSizeScale})`;
+  viewerPageEl.style.cursor = "";
 }
 
 imageViewer.addEventListener("touchstart", (e) => {
@@ -412,6 +420,7 @@ function showViewerPage(index) {
     viewerImage.hidden = true;
     const { width: pw, height: ph } = getPageSize();
     const scale = Math.min((window.innerWidth * 0.88) / pw, (window.innerHeight * 0.68) / ph);
+    viewerPageSizeScale = scale;
     const inner = page.querySelector("article") || page.firstElementChild;
     viewerPageEl.innerHTML = inner ? inner.outerHTML : "";
     viewerPageEl.style.cssText = `width:${pw}px;height:${ph}px;transform:scale(${scale})`;
