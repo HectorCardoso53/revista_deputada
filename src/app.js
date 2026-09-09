@@ -6,6 +6,7 @@ await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame
 const appShell = document.querySelector("#appShell");
 const bookElement = document.querySelector("#book");
 const bookStage = document.querySelector("#bookStage");
+const bookWrap = document.querySelector(".book-wrap");
 const pages = [...document.querySelectorAll(".page")];
 const total = pages.length;
 const pageTitles = pages.map((page) => page.dataset.title || "Página");
@@ -44,7 +45,7 @@ function getPageSize() {
 }
 
 const pageSize = getPageSize();
-document.querySelector(".book-wrap").style.width = `${pageSize.bookWidth}px`;
+bookWrap.style.width = `${pageSize.bookWidth}px`;
 const pageFlip = new PageFlip(bookElement, {
   width: pageSize.width,
   height: pageSize.height,
@@ -78,21 +79,57 @@ flipSurface?.addEventListener("mousedown", (event) => {
 }, true);
 
 function goToPage(index) {
-  const safeIndex = Math.max(0, Math.min(total - 1, Number(index) || 0));
+  const parsed = Number(index);
+  if (!Number.isFinite(parsed)) return;
+  const safeIndex = Math.max(0, Math.min(total - 1, Math.round(parsed)));
   if (pageFlip.getState() === "read" && safeIndex !== pageFlip.getCurrentPageIndex()) {
-    pageFlip.flip(safeIndex, "top");
+    runProgrammaticFlip(() => pageFlip.flip(safeIndex, "top"));
   }
   closeMobileSidebar();
 }
 
+let activeDirection = 0;
+let queuedDirection = 0;
+
+function runProgrammaticFlip(callback) {
+  const settings = pageFlip.getSettings();
+  const clickWasDisabled = settings.disableFlipByClick;
+  settings.disableFlipByClick = false;
+  try {
+    callback();
+  } finally {
+    settings.disableFlipByClick = clickWasDisabled;
+  }
+}
+
+function runFlip(direction) {
+  activeDirection = direction;
+  runProgrammaticFlip(() => {
+    if (direction < 0) pageFlip.flipPrev("top");
+    else pageFlip.flipNext("top");
+  });
+}
+
+function navigateBy(direction) {
+  if (pageFlip.getState() === "read") {
+    runFlip(direction);
+    return;
+  }
+
+  // A real touch can arrive while the page is finishing a fold. Keep the
+  // opposite navigation request instead of silently discarding the tap.
+  if (direction !== activeDirection) queuedDirection = direction;
+}
+
 function flipPrevious() {
-  if (pageFlip.getState() === "read") pageFlip.flipPrev("top");
+  navigateBy(-1);
 }
 
 function flipNext() {
-  if (pageFlip.getState() === "read") pageFlip.flipNext("top");
+  navigateBy(1);
 }
 
+const thumbnails = [];
 function buildThumbnails() {
   const list = document.querySelector("#thumbnailList");
   const fragment = document.createDocumentFragment();
@@ -111,6 +148,7 @@ function buildThumbnails() {
       </span>
       <span class="thumbnail-title">${pageTitles[index]}</span>`;
     button.addEventListener("click", () => goToPage(index));
+    thumbnails.push(button);
     fragment.appendChild(button);
   });
   list.appendChild(fragment);
@@ -131,27 +169,48 @@ function updateReader() {
   controls.next.forEach((button) => { button.disabled = index >= total - 1; });
   controls.first.disabled = index === 0;
   controls.last.disabled = index >= total - 1;
-  document.querySelectorAll(".thumbnail").forEach((thumb) => {
-    const active = Number(thumb.dataset.page) === index;
+  thumbnails.forEach((thumb, thumbIndex) => {
+    const active = thumbIndex === index;
     thumb.classList.toggle("active", active);
     thumb.setAttribute("aria-current", active ? "page" : "false");
   });
-  const activeThumb = document.querySelector(`.thumbnail[data-page="${index}"]`);
-  activeThumb?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  thumbnails[index]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 pageFlip.on("flip", updateReader);
 pageFlip.on("changeOrientation", updateReader);
-pageFlip.on("changeState", (event) => { bookElement.dataset.state = event.data; });
+pageFlip.on("changeState", (event) => {
+  bookElement.dataset.state = event.data;
+  if (event.data !== "read") return;
+
+  const pendingDirection = queuedDirection;
+  activeDirection = 0;
+  queuedDirection = 0;
+  if (pendingDirection) requestAnimationFrame(() => navigateBy(pendingDirection));
+});
 controls.prev.forEach((button) => button.addEventListener("click", flipPrevious));
 controls.next.forEach((button) => button.addEventListener("click", flipNext));
 controls.first.addEventListener("click", () => goToPage(0));
 controls.last.addEventListener("click", () => goToPage(total - 1));
-controls.input.addEventListener("change", () => goToPage(Number(controls.input.value) - 1));
+function submitPageInput() {
+  const requested = Number(controls.input.value.trim());
+  // Um valor inválido deve devolver o número atual, e não empurrar o leitor para a capa.
+  if (!Number.isFinite(requested) || controls.input.value.trim() === "") {
+    controls.input.value = String(pageFlip.getCurrentPageIndex() + 1);
+    return;
+  }
+  // Um pedido fora do intervalo é limitado silenciosamente, e goToPage é ignorado durante
+  // uma virada em curso: em ambos os casos o campo precisa refletir o destino real.
+  const target = Math.max(0, Math.min(total - 1, Math.round(requested) - 1));
+  const accepted = pageFlip.getState() === "read";
+  goToPage(target);
+  controls.input.value = String((accepted ? target : pageFlip.getCurrentPageIndex()) + 1);
+}
+controls.input.addEventListener("change", submitPageInput);
 controls.input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
-    goToPage(Number(controls.input.value) - 1);
+    submitPageInput();
     controls.input.blur();
   }
 });
@@ -165,7 +224,7 @@ const emptySearch = document.querySelector("#emptySearch");
 function filterPages() {
   const query = pageSearch.value.trim().toLocaleLowerCase("pt-BR");
   let visible = 0;
-  document.querySelectorAll(".thumbnail").forEach((thumb) => {
+  thumbnails.forEach((thumb) => {
     const matches = !query || thumb.dataset.search.includes(query);
     thumb.hidden = !matches;
     if (matches) visible += 1;
@@ -196,25 +255,37 @@ function closeMobileSidebar() {
   appShell.classList.remove("mobile-sidebar-open");
   menuButton.setAttribute("aria-expanded", "false");
 }
-menuButton.addEventListener("click", openMobileSidebar);
+menuButton.addEventListener("click", () => {
+  if (appShell.classList.contains("mobile-sidebar-open")) closeMobileSidebar();
+  else openMobileSidebar();
+});
 document.querySelector("#closeSidebar").addEventListener("click", closeMobileSidebar);
 document.querySelector("#sidebarBackdrop").addEventListener("click", closeMobileSidebar);
 
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1.3;
 let readerZoom = 1;
 function setReaderZoom(value) {
-  readerZoom = Math.max(0.8, Math.min(1.3, value));
+  // Sem o arredondamento, somas de 0.1 param em 1.2999999999999998 e os botões nunca desativam.
+  readerZoom = Math.round(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, value)) * 100) / 100;
   document.querySelector("#bookTransform").style.setProperty("--reader-zoom", readerZoom);
   document.querySelector("#zoomValue").textContent = `${Math.round(readerZoom * 100)}%`;
-  document.querySelector("#zoomOut").disabled = readerZoom <= 0.8;
-  document.querySelector("#zoomIn").disabled = readerZoom >= 1.3;
+  document.querySelector("#zoomOut").disabled = readerZoom <= ZOOM_MIN;
+  document.querySelector("#zoomIn").disabled = readerZoom >= ZOOM_MAX;
 }
 document.querySelector("#zoomOut").addEventListener("click", () => setReaderZoom(readerZoom - 0.1));
 document.querySelector("#zoomIn").addEventListener("click", () => setReaderZoom(readerZoom + 0.1));
 
 const fullscreenButton = document.querySelector("#fullscreenButton");
 fullscreenButton.addEventListener("click", async () => {
-  if (!document.fullscreenElement) await appShell.requestFullscreen?.();
-  else await document.exitFullscreen?.();
+  try {
+    // O visualizador de imagem e o toast ficam fora de #appShell; a tela cheia precisa ser
+    // do documento inteiro, senão eles somem quando o leitor está em fullscreen.
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.();
+    else await document.exitFullscreen?.();
+  } catch {
+    showToast("Tela cheia indisponível neste navegador");
+  }
 });
 document.addEventListener("fullscreenchange", () => {
   fullscreenButton.setAttribute("aria-label", document.fullscreenElement ? "Sair da tela cheia" : "Entrar em tela cheia");
@@ -265,9 +336,12 @@ document.querySelector("#shareButton").addEventListener("click", async () => {
   };
   try {
     if (navigator.share) await navigator.share(shareData);
-    else {
+    // navigator.clipboard só existe em contexto seguro (https ou localhost).
+    else if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(window.location.href);
       showToast("Link copiado");
+    } else {
+      showToast("Copie o link da barra de endereços");
     }
   } catch (error) {
     if (error?.name !== "AbortError") showToast("Não foi possível compartilhar");
@@ -287,12 +361,38 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+  if (event.key === "Escape") {
+    closeMobileSidebar();
+    return;
+  }
+  // Com o sumário aberto em telas pequenas as setas pertencem à lista, não ao livro.
+  if (appShell.classList.contains("mobile-sidebar-open")) return;
   if (event.key === "ArrowRight" || event.key === "PageDown") flipNext();
   if (event.key === "ArrowLeft" || event.key === "PageUp") flipPrevious();
   if (event.key === "Home") goToPage(0);
   if (event.key === "End") goToPage(total - 1);
-  if (event.key === "Escape") closeMobileSidebar();
 });
+
+let resizeFrame = 0;
+const sizeSignature = (size) => `${size.width}x${size.height}x${size.bookWidth}`;
+let lastSizeSignature = sizeSignature(pageSize);
+function syncBookLayout() {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    const nextSize = getPageSize();
+    // syncBookLayout redimensiona um filho de #bookStage, que é o próprio alvo do
+    // ResizeObserver. Sem esta guarda o observador se realimenta a cada quadro.
+    const signature = sizeSignature(nextSize);
+    if (signature === lastSizeSignature) return;
+    lastSizeSignature = signature;
+    bookWrap.style.width = `${nextSize.bookWidth}px`;
+    pageFlip.update();
+    updateReader();
+  });
+}
+window.addEventListener("resize", syncBookLayout);
+const bookStageObserver = new ResizeObserver(syncBookLayout);
+bookStageObserver.observe(bookStage);
 
 updateReader();
 setReaderZoom(1);

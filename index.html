@@ -31,6 +31,9 @@
           </div>
         </div>
         <div class="top-actions">
+          <a class="top-action top-action-instagram" href="https://www.instagram.com/renata.fonseca.oficial/" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram oficial de Renata Fonseca">
+            <svg aria-hidden="true"><use href="#i-instagram"></use></svg><span>Instagram</span>
+          </a>
           <button class="top-action" id="shareButton" type="button">
             <svg aria-hidden="true"><use href="#i-share"></use></svg><span>Compartilhar</span>
           </button>
@@ -57,14 +60,14 @@
           <kbd>/</kbd>
         </label>
         <div class="sidebar-tabs" role="tablist" aria-label="Modo de navegação">
-          <button class="sidebar-tab active" type="button" role="tab" aria-selected="true" data-panel="thumbnails">Páginas</button>
-          <button class="sidebar-tab" type="button" role="tab" aria-selected="false" data-panel="summary">Sumário</button>
+          <button class="sidebar-tab active" type="button" role="tab" id="tabThumbnails" aria-selected="true" aria-controls="thumbnails" data-panel="thumbnails">Páginas</button>
+          <button class="sidebar-tab" type="button" role="tab" id="tabSummary" aria-selected="false" aria-controls="summary" data-panel="summary">Sumário</button>
         </div>
-        <div class="sidebar-panel active" id="thumbnails" role="tabpanel">
+        <div class="sidebar-panel active" id="thumbnails" role="tabpanel" tabindex="0" aria-labelledby="tabThumbnails">
           <div class="thumbnail-list" id="thumbnailList"></div>
           <p class="empty-search" id="emptySearch" hidden>Nenhuma página encontrada.</p>
         </div>
-        <nav class="sidebar-panel summary-list" id="summary" role="tabpanel" aria-label="Capítulos">
+        <nav class="sidebar-panel summary-list" id="summary" role="tabpanel" tabindex="0" aria-labelledby="tabSummary">
           <button type="button" data-page="0"><span>01</span><div><strong>Capa</strong><small>Conheça minha história</small></div></button>
           <button type="button" data-page="1"><span>02</span><div><strong>Trajetória</strong><small>Compromisso e serviço</small></div></button>
           <button type="button" data-page="2"><span>03</span><div><strong>Quem é Renata</strong><small>História profissional</small></div></button>
@@ -148,7 +151,7 @@
                 </div>
                 <div class="page" data-title="Acompanhe" data-search="instagram siga acompanhar renata fonseca oficial qr code">
                   <img class="source-page" src="/assets/folder-frente-2.webp" alt="Instagram Renata Fonseca Oficial com QR Code" />
-                  <span class="page-label">Siga para acompanhar</span>
+                  <a class="page-label" href="https://www.instagram.com/renata.fonseca.oficial/" target="_blank" rel="noopener noreferrer">Siga para acompanhar</a>
                   <button class="zoom-trigger" type="button" aria-label="Ampliar página com QR Code" data-zoom><svg aria-hidden="true"><use href="#i-maximize"></use></svg></button>
                 </div>
                 <div class="page closing" data-density="hard" data-title="Contracapa" data-search="contracapa história continua resultados coragem fazer diferente 22333">
@@ -156,7 +159,7 @@
                     <p class="eyebrow">A história continua</p>
                     <h2>Resultados de quem teve coragem de fazer diferente.</h2>
                     <p class="lead">Educação, inclusão, proteção social e compromisso com as pessoas.</p>
-                    <div class="handle">@renata.fonseca.oficial</div>
+                    <a class="handle" href="https://www.instagram.com/renata.fonseca.oficial/" target="_blank" rel="noopener noreferrer">@renata.fonseca.oficial</a>
                     <div class="number-card compact"><span>Deputada Estadual</span><strong>22333</strong></div>
                   </article>
                 </div>
@@ -220,6 +223,7 @@
       <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></symbol>
       <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
       <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></symbol>
+      <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8"/></symbol>
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14" /></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
       <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8.5 11V5.5a1.5 1.5 0 0 1 3 0V10m0-4.5a1.5 1.5 0 0 1 3 0V10m0-3.5a1.5 1.5 0 0 1 3 0V11m0-2.5a1.5 1.5 0 0 1 3 0V14c0 4.4-3.6 8-8 8h-1c-2.3 0-4.5-1.1-5.8-3L3.3 15.5a1.8 1.8 0 0 1 2.8-2.2L8.5 16"/></symbol>
