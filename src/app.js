@@ -84,6 +84,13 @@ flipSurface?.addEventListener("mousedown", (event) => {
   if (x > edge && x < rect.width - edge) event.stopImmediatePropagation();
 }, true);
 
+bookStage.addEventListener("click", (e) => {
+  if (e.target.closest("button, a")) return;
+  const rect = bookStage.getBoundingClientRect();
+  if (e.clientX - rect.left < rect.width / 2) flipPrevious();
+  else flipNext();
+});
+
 let pinchStartDist = 0;
 let pinchStartZoom = 1;
 
